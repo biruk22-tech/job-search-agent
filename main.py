@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import anthropic
 import os
@@ -27,17 +28,24 @@ def chat(msg: Message):
         "content": msg.message
     })
 
-    response = client.messages.create(
-        model="claude-sonnet-4-5",
-        max_tokens=1000,
-        system="""You are a helpful job search agent. You help users with:
-        - Finding jobs that match their skills
-        - Writing resumes and cover letters
-        - Interview preparation
-        - Career advice
-        Be specific, actionable, and encouraging.""",
-        messages=conversation_history
-    )
+    try:
+        response = client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=1000,
+            system="""You are a helpful job search agent. You help users with:
+            - Finding jobs that match their skills
+            - Writing resumes and cover letters
+            - Interview preparation
+            - Career advice
+            Be specific, actionable, and encouraging.""",
+            messages=conversation_history
+        )
+    except anthropic.APIError:
+        conversation_history.pop()
+        return JSONResponse(
+            status_code=502,
+            content={"error": "The AI service is temporarily unavailable. Please try again."}
+        )
 
     reply = response.content[0].text
 
